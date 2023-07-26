@@ -1,9 +1,10 @@
-import { ElMessage } from "element-ui"; // 引入elementUI的Message组件
+import { Message } from "element-ui"; // 引入elementUI的Message组件
 import axios from "axios";
+
 // import qs from "qs";
 // import NProgress from "nprogress";
 // import 'nprogress/nprogress.css'
-let ticket = "xabxdzkj-f937b9b7-50c3-4251-a690-14436ca3f652";
+let ticket = "xabxdzkj-cb4491e4-bd75-4063-9298-a66ccd024cb7";
 if (sessionStorage.getItem("bx_auth_ticket")) {
   ticket = sessionStorage.getItem("bx_auth_ticket");
 }
@@ -44,9 +45,10 @@ axios.interceptors.response.use(
   },
   (error) => {
     // NProgress.done();
-    ElMessage({
+    console.log(error);
+    Message({
       showClose: true,
-      message: JSON.stringify(error),
+      message: error?.data?.resultMessage || JSON.stringify(error),
       type: "error",
     });
   }
@@ -66,7 +68,7 @@ export default {
         data: data,
       })
         .then((res) => {
-          resolve(res.data);
+          resolve(res?.data||res);
         })
         .catch((err) => {
           reject(err);
@@ -82,7 +84,7 @@ export default {
         params: data,
       })
         .then((res) => {
-          resolve(res.data);
+          resolve(res?.data||res);
         })
         .catch((err) => {
           reject(err);

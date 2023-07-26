@@ -3,7 +3,7 @@
         <ve-table ref="tableRef" style="word-break: break-word" fixed-header :scroll-width="0" :max-height="800" border-y
             :columns="columns" :table-data="tableData" row-key-field-name="rowKey"
             :virtual-scroll-option="virtualScrollOption" :cell-autofill-option="cellAutofillOption"
-            :edit-option="editOption" :contextmenu-body-option="contextmenuBodyOption"
+            :edit-option="editOption" :clipboard-option="clipboardOption" :contextmenu-body-option="contextmenuBodyOption"
             :contextmenu-header-option="contextmenuHeaderOption" :row-style-option="rowStyleOption"
             :column-width-resize-option="columnWidthResizeOption" />
         <div flex flex-items-center flex-justify-between m-l-a m-r-a p-10>
@@ -14,23 +14,26 @@
                 <el-button size="mini" type="primary" @click="insertRows" :disabled="insertRowNumber === 0">确认</el-button>
             </div>
             <div>
-                <el-button size="mini" type="primary">保存</el-button>
+                <el-button size="mini" type="primary" @click="saveData"
+                    :disabled="buildReqParams.length === 0">保存</el-button>
             </div>
         </div>
     </div>
 </template>
 
 <script>
-import { getServiceV2, onSelect, onBatchAdd } from '../service/api'
-import { buildSrvCols } from '@/utils/sheetUtils'
-import { COLUMN_KEYS } from '../utils/constant'
-import { uniqueId } from 'lodash-es'
+import { getServiceV2, onSelect, onBatchOperate, onDelete } from "../service/api";
+import { buildSrvCols } from "@/utils/sheetUtils";
+import { COLUMN_KEYS } from "../utils/constant";
+import { uniqueId } from "lodash-es";
+import { Message } from "element-ui"; // 引入elementUI的Message组件
+
 export default {
     mounted() {
         if (this.serviceName) {
             this.getV2Data().then(() => {
-                this.getList()
-            })
+                this.getList();
+            });
         }
     },
     data() {
@@ -51,35 +54,88 @@ export default {
                 directionX: true,
                 directionY: true,
             },
+            // 剪贴板配置
+            clipboardOption: {
+                beforePaste: ({
+                    data, selectionRangeIndexes, selectionRangeKeys
+                }) => {
+                    console.log({
+                        data, selectionRangeIndexes, selectionRangeKeys
+                    });
+                }
+            },
             // 单元格编辑配置
             editOption: {
                 afterCellValueChange: ({ row, column, changeValue }) => {
                     console.log(row, column, changeValue);
-                    console.log(this.tableData);
+                    if (row.__id) {
+                        row.__flag = 'update'
+                    }
+                    // console.log(this.tableData);
                 },
                 beforeStartCellEditing: ({ row, column, cellValue }) => {
                     console.log(row, column, cellValue);
-                    if (column.__field_info.col_type !== 'String') {
-                        return
+                    if (column.__field_info.col_type !== "String") {
+                        return;
                     }
-                }
+                },
             },
             // header 右键菜单配置
             contextmenuHeaderOption: {
-                contextmenus: [
-                    {
-                        type: "CUT",
-                    },
-                    {
-                        type: "COPY",
-                    },
-                    {
-                        type: "EMPTY_COLUMN",
-                    },
-                ],
+                // contextmenus: [
+                //     {
+                //         type: "CUT",
+                //     },
+                //     {
+                //         type: "COPY",
+                //     },
+                //     {
+                //         type: "EMPTY_COLUMN",
+                //     },
+                // ],
             },
             // body 右键菜单配置
             contextmenuBodyOption: {
+                afterMenuClick: ({ type, selectionRangeKeys, selectionRangeIndexes }) => {
+                    console.log("---contextmenu body afterMenuClick--");
+                    console.log("type::", type);
+                    console.log("selectionRangeKeys::", selectionRangeKeys);
+                    console.log("selectionRangeIndexes::", selectionRangeIndexes);
+                    if (type === 'delete-row-data') {
+                        if (!this.deleteButton?.service_name) {
+                            this.$message({
+                                type: 'error',
+                                message: '没有删除权限'
+                            })
+                            return false
+                        }
+                        // 删除选中行数据
+                        let text = `此操作将永久删除该第${selectionRangeIndexes.startRowIndex + 1}至第${selectionRangeIndexes.endRowIndex + 1}行数据，是否继续操作？`
+                        if (selectionRangeIndexes.endRowIndex - selectionRangeIndexes.startRowIndex == 0) {
+                            text = `此操作将永久删除该第${selectionRangeIndexes.startRowIndex + 1}行数据，是否继续操作？`
+                        }
+                        this.$confirm(text, '提示', {
+                            distinguishCancelAndClose: true,
+                            confirmButtonText: '确认',
+                            cancelButtonText: '点错了',
+                            type: 'error',
+                            // center: true
+                        })
+                            .then(() => {
+                                // this.$message({
+                                //     type: 'success',
+                                //     message: '删除成功'
+                                // });
+                                this.deleteRow(selectionRangeIndexes)
+                            })
+                            .catch(action => {
+                                this.$message({
+                                    type: 'info',
+                                    message: '用户取消操作'
+                                })
+                            });
+                    }
+                },
                 contextmenus: [
                     {
                         type: "CUT",
@@ -100,11 +156,15 @@ export default {
                         type: "SEPARATOR",
                     },
                     {
-                        type: "REMOVE_ROW",
+                        type: "delete-row-data",
+                        label: "删除选中行数据",
                     },
-                    {
-                        type: "EMPTY_ROW",
-                    },
+                    // {
+                    //     type: "REMOVE_ROW",
+                    // },
+                    // {
+                    //     type: "EMPTY_ROW",
+                    // },
                     {
                         type: "EMPTY_CELL",
                     },
@@ -113,23 +173,73 @@ export default {
             // 行样式配置
             rowStyleOption: {
                 clickHighlight: false,
-                hoverHighlight: false,
+                hoverHighlight: true,
             },
             tableData: [],
+            oldTableData: [],
             list: {},
             v2data: {},
-            allFields: []
+            allFields: [],
         };
     },
     computed: {
+        addButton() {
+            return this.v2data?.gridButton?.find(item => item.button_type.includes('add'))
+        },
+        deleteButton() {
+            return this.v2data?.rowButton?.find(item => item.button_type.includes("delete"))
+        },
+        updateButton() {
+            return this.v2data?.rowButton?.find(item => item.button_type?.includes('edit'))
+        },
+        buildReqParams() {
+            const tableData = JSON.parse(JSON.stringify(this.tableData));
+            const reqData = []
+            tableData.forEach((item, index) => {
+                if (item.__flag === 'update' && item.id && this.updateButton?.service_name) {
+                    const oldItem = this.oldTableData.find(d => d.__id === item.__id)
+                    const updateObj = {}
+                    if (oldItem) {
+                        Object.keys(oldItem).forEach(key => {
+                            if (!['__id', '__flag', 'rowKey', 'id'].includes(key)) {
+                                if (oldItem[key] !== item[key]) {
+                                    updateObj[key] = item[key]
+                                }
+                            }
+                        })
+                        reqData.push({
+                            serviceName: this.updateButton.service_name,
+                            condition: [{ colName: "id", ruleType: "eq", value: item.id }],
+                            data: [updateObj],
+                        })
+                    }
+                } else if (item.__flag === 'add' && this.addButton?.service_name) {
+                    const addObj = {
+                        ...item
+                    }
+                    delete addObj.__id
+                    delete addObj.__flag
+                    delete addObj.rowKey
+                    if (Object.keys(addObj).length > 0 && Object.keys(addObj).some(key => addObj[key] !== undefined && addObj[key] !== null && addObj[key] !== '')) {
+                        reqData.push({
+                            serviceName: this.addButton.service_name,
+                            data: [addObj],
+                        })
+                    }
+                }
+            })
+            return reqData
+        },
+
+
         tableHeader() {
-            return this.v2data?.allFields
+            return this.v2data?.allFields;
         },
         serviceName() {
-            return this.$route.params?.service || this.$route.query?.service
+            return this.$route.params?.service || this.$route.query?.service;
         },
         srvApp() {
-            return this.$route.params?.app || this.$route.query?.app
+            return this.$route.params?.app || this.$route.query?.app || sessionStorage.getItem('current_app');
         },
         columns() {
             const startRowIndex = this.startRowIndex;
@@ -149,21 +259,20 @@ export default {
             ];
             if (Array.isArray(this.allFields) && this.allFields.length > 0) {
                 columns = columns.concat(
-                    this.allFields.map(item => {
+                    this.allFields.map((item) => {
                         return {
                             title: item.label,
                             field: item.columns,
                             key: item.columns,
                             width: 100,
-                            edit: item.col_type === 'String',
-                            __field_info: { ...item }
+                            edit: item.col_type === "String",
+                            __field_info: { ...item },
                         };
                     })
-                )
-                return columns
+                );
+                return columns;
             }
             columns = columns.concat(
-
                 COLUMN_KEYS.map((keyValue) => {
                     return {
                         title: keyValue,
@@ -178,67 +287,119 @@ export default {
         },
     },
     methods: {
+        deleteRow(rowIndexs = {}) {
+            const { startRowIndex, endRowIndex } = rowIndexs
+            const deleIds = []
+            this.tableData.forEach((item, index) => {
+                if (item.id && index >= startRowIndex && index <= endRowIndex) {
+                    deleIds.push(item.id)
+                }
+            })
+            if (deleIds.length > 0) {
+                onDelete(deleIds.toString(), this.deleteButton?.service_name, this.srvApp).then(res => {
+                    if (res?.state === 'SUCCESS') {
+                        Message({
+                            showClose: true,
+                            message: res.resultMessage,
+                            type: "success",
+                        })
+                        this.getList()
+                    } else if (res?.resultMessage) {
+                        Message({
+                            showClose: true,
+                            message: res.resultMessage,
+                            type: "error",
+                        })
+                    }
+                })
+            }
+
+        },
+        saveData() {
+            const reqData = this.buildReqParams
+            if (Array.isArray(reqData) && reqData.length > 0 && this.updateButton?.service_name) {
+                onBatchOperate(reqData, this.updateButton.service_name, this.srvApp).then(res => {
+                    if (res?.state === 'SUCCESS') {
+                        Message({
+                            showClose: true,
+                            message: res.resultMessage,
+                            type: "success",
+                        })
+                        this.getList()
+                    } else if (res?.resultMessage) {
+                        Message({
+                            showClose: true,
+                            message: res.resultMessage,
+                            type: "error",
+                        })
+                    }
+                })
+            }
+        },
         insertRows() {
             if (this.insertRowNumber > 0) {
                 for (let index = 0; index < this.insertRowNumber; index++) {
-                    const __id = uniqueId('table_item_')
+                    const __id = uniqueId("table_item_");
                     const dataItem = {
                         rowKey: __id,
                         __id,
-                        __flag: 'add'
-                    }
+                        __flag: "add",
+                    };
                     this.allFields.forEach((field) => {
                         dataItem[field.columns] = "";
                     });
-                    this.tableData.push(dataItem)
+                    this.tableData.push(dataItem);
                     this.$nextTick(() => {
-                        this.$refs["tableRef"].scrollToRowKey({ rowKey: this.tableData[this.tableData.length - 1]['__id'] });
-                        this.this.insertRowNumber = 0
-                    })
+                        this.$refs["tableRef"].scrollToRowKey({
+                            rowKey: this.tableData[this.tableData.length - 1]["__id"],
+                        });
+                        this.insertRowNumber = 0;
+                    });
                     // setTimeout(() => {
                     //     this.$refs["tableRef"].scrollToRowKey({ rowKey: this.tableData[this.tableData.length-1]['__id'] });
                     // }, 2000);
                 }
             }
-
         },
         async getList() {
             if (this.serviceName) {
-                const params = {
-                    app: this.srvApp || 'daq'
-                }
-                const res = await onSelect(this.serviceName, params)
+                const res = await onSelect(this.serviceName, this.srvApp);
                 this.list.data = res.data;
                 // this.tableData = res.data
-                this.list.page = res.page
+                this.list.page = res.page;
 
                 let tableData = [];
-                for (let i = 0; i < res.data.length; i++) {
-                    const __id = uniqueId('table_item_')
+                for (let i = res.data.length - 1; i >= 0; i--) {
+                    const __id = uniqueId("table_item_");
                     let dataItem = {
                         rowKey: __id,
                         __id,
-                        __flag: 'update'
+                        __flag: null,
+                        ...res.data[i]
+                        // __flag: "update",
                     };
-                    this.allFields.forEach((field) => {
-                        dataItem[field.columns] = res.data[i][field.columns]
-                    });
+                    // this.allFields.forEach((field) => {
+                    //     dataItem[field.columns] = res.data[i][field.columns];
+                    // });
                     tableData.push(dataItem);
                 }
                 this.tableData = tableData;
+                this.oldTableData = JSON.parse(JSON.stringify(tableData))
                 this.$nextTick(() => {
-                    this.$refs["tableRef"].scrollToRowKey({ rowKey: this.tableData[this.tableData.length - 1]['__id'] });
-                })
+                    this.$refs["tableRef"].scrollToRowKey({
+                        rowKey: this.tableData[this.tableData.length - 1]["__id"],
+                    });
+                });
             }
         },
         async getV2Data() {
-            const res = await getServiceV2(this.serviceName, 'list', this.srvApp)
-            if (res?.state === 'SUCCESS') {
-                this.v2data = res.data
-                this.v2data.allFields = await buildSrvCols(this.v2data.srv_cols)
-                this.allFields = this.v2data.allFields
-                this.initTableData()
-                document.title = res.data.service_view_name
+            const res = await getServiceV2(this.serviceName, "list", this.srvApp);
+            if (res?.state === "SUCCESS") {
+                this.v2data = res.data;
+                this.v2data.allFields = await buildSrvCols(this.v2data.srv_cols);
+                this.allFields = this.v2data.allFields;
+                this.initTableData();
+                document.title = res.data.service_view_name;
             }
         },
         scrolling({
@@ -254,7 +415,7 @@ export default {
         initTableData() {
             let tableData = [];
             for (let i = 0; i < 100; i++) {
-                const __id = uniqueId('table_item_')
+                const __id = uniqueId("table_item_");
                 let dataItem = {
                     rowKey: __id,
                     __id,
