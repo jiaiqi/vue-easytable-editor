@@ -13,6 +13,15 @@ axios.defaults.baseURL = "https://wx.100xsys.cn/";
 if (top?.pathConfig?.gateway) {
   axios.defaults.baseURL = top?.pathConfig?.gateway;
 }
+let pathConfig = sessionStorage.pathConfig;
+if (pathConfig) {
+  try {
+    pathConfig = JSON.parse(pathConfig);
+    if (pathConfig?.gateway) {
+      axios.defaults.baseURL = pathConfig?.gateway;
+    }
+  } catch (error) {}
+}
 
 //post请求头
 axios.defaults.headers.post["Content-Type"] = "application/json;charset=UTF-8";
@@ -68,7 +77,7 @@ export default {
         data: data,
       })
         .then((res) => {
-          resolve(res?.data||res);
+          resolve(res?.data || res);
         })
         .catch((err) => {
           reject(err);
@@ -84,7 +93,7 @@ export default {
         params: data,
       })
         .then((res) => {
-          resolve(res?.data||res);
+          resolve(res?.data || res);
         })
         .catch((err) => {
           reject(err);

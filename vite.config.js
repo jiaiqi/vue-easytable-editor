@@ -10,6 +10,9 @@ import { presetUno, presetAttributify, presetIcons } from 'unocss'
 // https://vitejs.dev/config/
 export default defineConfig({
   base:"/sheet_v2/",
+  build:{
+    outDir:"./sheet_v2",
+  },
   plugins: [
     vue2(),
     Unocss({

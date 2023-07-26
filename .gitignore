@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 .DS_Store
 dist
+sheet_v2
 dist-ssr
 *.local
 
