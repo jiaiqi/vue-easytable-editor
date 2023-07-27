@@ -6,7 +6,7 @@
             :edit-option="editOption" :clipboard-option="clipboardOption" :contextmenu-body-option="contextmenuBodyOption"
             :contextmenu-header-option="contextmenuHeaderOption" :row-style-option="rowStyleOption"
             :column-width-resize-option="columnWidthResizeOption" />
-        <div flex flex-items-center flex-justify-between m-l-a m-r-a p-10>
+        <div class="flex flex-items-center flex-justify-between m-l-a m-r-a p-10">
             <div flex w-80>
                 <div m-r-5>插入</div>
                 <el-input-number size="mini" v-model="insertRowNumber" />
@@ -210,9 +210,6 @@ export default {
                 if (item.__flag === 'update' && item.id && this.updateButton?.service_name) {
                     const oldItem = this.oldTableData.find(d => d.__id === item.__id)
                     const updateObj = {}
-                    // if (this.fkCondition?.colName) {
-                    //     updateObj[this.fkCondition.colName] = this.fkCondition.value
-                    // }
                     if (oldItem) {
                         Object.keys(oldItem).forEach(key => {
                             if (!['__id', '__flag', 'rowKey', 'id'].includes(key)) {
@@ -324,6 +321,62 @@ export default {
                                 }
                                 );
                             }
+                        } else if (item.col_type === 'Date') {
+                            columnObj.width = 150
+                            columnObj.renderBodyCell = ({ row, column, rowIndex }, h) => {
+                                return h('el-date-picker', {
+                                    attrs: {
+                                        value: row[column.field],
+                                        size: "mini",
+                                        type: "date",
+                                        style: "width:130px;"
+                                    },
+                                    nativeOn: {
+                                        click: (event) => {
+                                            event.stopPropagation()
+                                            event.preventDefault()
+                                        },
+                                    },
+                                    on: {
+                                        input: (event) => {
+                                            self.$set(row, column.field, event)
+                                        }
+                                    }
+                                }
+                                );
+                            }
+                        } else if (item.col_type === 'Enum') {
+                            // columnObj.width = 150
+                            columnObj.renderBodyCell = ({ row, column, rowIndex }, h) => {
+                                return h('el-select', {
+                                    attrs: {
+                                        value: row[column.field],
+                                        size: "mini",
+                                        // style: "width:130px;"
+                                    },
+                                    nativeOn: {
+                                        click: (event) => {
+                                            event.stopPropagation()
+                                            event.preventDefault()
+                                        },
+                                    },
+                                    on: {
+                                        input: (event) => {
+                                            self.$set(row, column.field, event)
+                                        }
+                                    }
+                                },
+                                    item.option_list_v2.map(op => {
+                                        return h('el-option', {
+                                            attrs: {
+                                                key: op.value,
+                                                label: op.label,
+                                                value: op.value,
+                                            }
+                                        })
+                                    })
+                                );
+                            }
                         }
                         return columnObj
                     })
@@ -413,9 +466,6 @@ export default {
                         });
                         this.insertRowNumber = 0;
                     });
-                    // setTimeout(() => {
-                    //     this.$refs["tableRef"].scrollToRowKey({ rowKey: this.tableData[this.tableData.length-1]['__id'] });
-                    // }, 2000);
                 }
             }
         },
@@ -436,9 +486,6 @@ export default {
                         ...res.data[i]
                         // __flag: "update",
                     };
-                    // this.allFields.forEach((field) => {
-                    //     dataItem[field.columns] = res.data[i][field.columns];
-                    // });
                     tableData.push(dataItem);
                 }
                 this.tableData = tableData;

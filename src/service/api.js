@@ -23,12 +23,16 @@ const getServiceV2 = async (serviceName, use_type = "list", app = "health") => {
   }
 };
 
-const onSelect = async (serviceName, app, condition) => {
+const onSelect = async (serviceName, app, condition, page = {}) => {
   if (serviceName) {
     const req = {
       serviceName: serviceName,
       colNames: ["*"],
       condition: condition || [],
+      page: {
+        rownumber: page?.rownumber || 100,
+        pageNo: page?.pageNo || 1,
+      },
     };
     const url = `${app}/select/${serviceName}`;
     return await http.post(url, req);
