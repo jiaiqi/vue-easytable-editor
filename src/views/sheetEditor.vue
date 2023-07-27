@@ -327,7 +327,7 @@ export default {
           field: "index",
           key: "index",
           operationColumn: true,
-          title: "",
+          title: "#",
           width: 50,
           fixed: "left",
           renderBodyCell: function ({ rowIndex }) {
@@ -371,7 +371,7 @@ export default {
               columnObj.renderBodyCell = ({ row, column, rowIndex }, h) => {
                 return h("elInputNumber", {
                   attrs: {
-                    value: row[column.field],
+                    value: row[column.field]||undefined,
                     size: "mini",
                     step,
                     precision,
