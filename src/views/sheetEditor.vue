@@ -259,6 +259,7 @@ export default {
             return this.$route.params?.app || this.$route.query?.app || sessionStorage.getItem('current_app');
         },
         columns() {
+            const self = this
             const startRowIndex = this.startRowIndex;
             let columns = [
                 {
@@ -282,21 +283,48 @@ export default {
                             field: item.columns,
                             key: item.columns,
                             width: 100,
-                            edit: ['Integer', 'String', 'Float', "Money"].includes(item.col_type),
+                            edit: ['String'].includes(item.col_type) || item.col_type.includes('decimal'),
+                            // edit: ['Integer', 'String', 'Float', "Money"].includes(item.col_type) || item.col_type.includes('decimal'),
                             __field_info: { ...item },
                         };
-                        // if (['Integer'].includes(item.col_type)) {
-                        //     columnObj.width = 150
-                        //     columnObj.renderBodyCell = ({ row, column, rowIndex }, h) => {
-                        //         return h('elInputNumber', {
-                        //             attrs: {
-                        //                 value: row[column.field],
-                        //                 size: "mini"
-                        //             }
-                        //         }
-                        //         );
-                        //     }
-                        // }
+                        if (['Integer', 'Float', 'Money'].includes(item.col_type) || item.col_type.includes('decimal')) {
+                            let precision = null;
+                            let step = 1
+                            if (['Float', 'Money'].includes(item.col_type)) {
+                                precision = 2;
+                                step = 0.01
+                            }
+                            if (item.col_type.includes('decimal')) {
+                                const str = item.col_type;
+                                const regex = /decimal\((\d+),(\d+)\)/;
+                                const match = str.match(regex)
+                                precision = match[2] * 1
+                                step = 1 / 10 ** match[2]
+                            }
+                            columnObj.width = 150
+                            columnObj.renderBodyCell = ({ row, column, rowIndex }, h) => {
+                                return h('elInputNumber', {
+                                    attrs: {
+                                        value: row[column.field],
+                                        size: "mini",
+                                        step,
+                                        precision
+                                    },
+                                    nativeOn: {
+                                        click: (event) => {
+                                            event.stopPropagation()
+                                            event.preventDefault()
+                                        },
+                                    },
+                                    on: {
+                                        input: (event) => {
+                                            self.$set(row, column.field, event)
+                                        }
+                                    }
+                                }
+                                );
+                            }
+                        }
                         return columnObj
                     })
                 );
@@ -428,7 +456,7 @@ export default {
                 this.v2data = res.data;
                 this.v2data.allFields = await buildSrvCols(this.v2data.srv_cols);
                 this.allFields = this.v2data.allFields;
-                this.initTableData();
+                // this.initTableData();
                 document.title = res.data.service_view_name;
             }
         },
