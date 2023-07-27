@@ -22,6 +22,11 @@ const router = new VueRouter({
       name: "sheetEditor",
       component: SheetEditor,
     },
+    {
+      path: "/:service/:fkCol/:fkVal",
+      name: "sheetEditor",
+      component: SheetEditor,
+    },
     // {
     //   path: '/about',
     //   name: 'about',

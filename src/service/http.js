@@ -4,7 +4,7 @@ import axios from "axios";
 // import qs from "qs";
 // import NProgress from "nprogress";
 // import 'nprogress/nprogress.css'
-let ticket = "xabxdzkj-cb4491e4-bd75-4063-9298-a66ccd024cb7";
+let ticket = "xabxdzkj-4d35b2c9-877b-46e7-912d-cdd45bd076fa";
 if (sessionStorage.getItem("bx_auth_ticket")) {
   ticket = sessionStorage.getItem("bx_auth_ticket");
 }

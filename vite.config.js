@@ -5,13 +5,13 @@ import legacy from "@vitejs/plugin-legacy";
 import vue2 from "@vitejs/plugin-vue2";
 
 import Unocss from "unocss/vite";
-import { presetUno, presetAttributify, presetIcons } from 'unocss'
+import { presetUno, presetAttributify, presetIcons } from "unocss";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base:"/sheet_v2/",
-  build:{
-    outDir:"./sheet_v2",
+  base: "/sheet_v2/",
+  build: {
+    outDir: "./sheet_v2",
   },
   plugins: [
     vue2(),

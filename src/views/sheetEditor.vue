@@ -183,6 +183,17 @@ export default {
         };
     },
     computed: {
+        fkCondition() {
+            const fkCol = this.$route?.params?.fkCol || this.$route?.query?.fkCol
+            const fkVal = this.$route?.params?.fkVal || this.$route?.query?.fkVal
+            if (fkCol && fkVal) {
+                return {
+                    colName: fkCol,
+                    ruleType: 'eq',
+                    value: fkVal
+                }
+            }
+        },
         addButton() {
             return this.v2data?.gridButton?.find(item => item.button_type.includes('add'))
         },
@@ -199,6 +210,9 @@ export default {
                 if (item.__flag === 'update' && item.id && this.updateButton?.service_name) {
                     const oldItem = this.oldTableData.find(d => d.__id === item.__id)
                     const updateObj = {}
+                    // if (this.fkCondition?.colName) {
+                    //     updateObj[this.fkCondition.colName] = this.fkCondition.value
+                    // }
                     if (oldItem) {
                         Object.keys(oldItem).forEach(key => {
                             if (!['__id', '__flag', 'rowKey', 'id'].includes(key)) {
@@ -216,6 +230,9 @@ export default {
                 } else if (item.__flag === 'add' && this.addButton?.service_name) {
                     const addObj = {
                         ...item
+                    }
+                    if (this.fkCondition?.colName) {
+                        addObj[this.fkCondition.colName] = this.fkCondition.value
                     }
                     delete addObj.__id
                     delete addObj.__flag
@@ -260,14 +277,27 @@ export default {
             if (Array.isArray(this.allFields) && this.allFields.length > 0) {
                 columns = columns.concat(
                     this.allFields.map((item) => {
-                        return {
+                        const columnObj = {
                             title: item.label,
                             field: item.columns,
                             key: item.columns,
                             width: 100,
-                            edit: item.col_type === "String",
+                            edit: ['Integer', 'String', 'Float', "Money"].includes(item.col_type),
                             __field_info: { ...item },
                         };
+                        // if (['Integer'].includes(item.col_type)) {
+                        //     columnObj.width = 150
+                        //     columnObj.renderBodyCell = ({ row, column, rowIndex }, h) => {
+                        //         return h('elInputNumber', {
+                        //             attrs: {
+                        //                 value: row[column.field],
+                        //                 size: "mini"
+                        //             }
+                        //         }
+                        //         );
+                        //     }
+                        // }
+                        return columnObj
                     })
                 );
                 return columns;
@@ -363,7 +393,7 @@ export default {
         },
         async getList() {
             if (this.serviceName) {
-                const res = await onSelect(this.serviceName, this.srvApp);
+                const res = await onSelect(this.serviceName, this.srvApp, this.fkCondition ? [this.fkCondition] : null);
                 this.list.data = res.data;
                 // this.tableData = res.data
                 this.list.page = res.page;
