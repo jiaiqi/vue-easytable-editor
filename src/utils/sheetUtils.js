@@ -1,11 +1,15 @@
 import { getFkOptions } from "@/service/api";
 
 // 组装srvCols数据
-const buildSrvCols = async (cols) => {
+const buildSrvCols = async (cols, fkCond) => {
   if (Array.isArray(cols) && cols.length > 0) {
     // cols = cols.filter(item => item.in_add == 1 || item.in_update == 1)
     // cols = cols.filter((item) => item.in_list === 1);
-    cols = cols.filter((item) => item.in_add === 1);
+    cols = cols.filter((item) =>
+      fkCond?.colName
+        ? item.in_list === 1 && item.columns !== fkCond?.colName
+        : item.in_add === 1
+    );
     for (let index = 0; index < cols.length; index++) {
       const col = cols[index];
       switch (col.bx_col_type) {
